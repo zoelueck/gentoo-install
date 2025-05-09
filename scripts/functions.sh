@@ -463,6 +463,7 @@ function disk_format() {
 				mkfs.xfs -q "$device" \
 					|| die "Could not format device '$device' ($id)"
 			fi
+			;;
 		*) die "Unknown filesystem type" ;;
 	esac
 }
