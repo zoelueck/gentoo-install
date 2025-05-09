@@ -455,6 +455,13 @@ function disk_format() {
 
 			init_btrfs "$device" "'$device' ($id)"
 			;;
+		'xfs')
+			if [[ -v "argument[label]" ]]; then
+				mkfs.xfs -q -L "$label" "$device" \
+					|| die "Could not format device '$device' ($id)"
+			else
+				mkfs.xfs -q "$device" \
+					|| die "Could not format device '$device' ($id)"
 		*) die "Unknown filesystem type" ;;
 	esac
 }

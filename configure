@@ -159,6 +159,7 @@ function define_disk_layout() {
 	local swapdev
 	case "$PARTITIONING_SCHEME" in
 		"classic_single_disk") define_disk_configuration_function "create_classic_single_disk_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICE@Q}" ;;
+		"zfs_centric")         define_disk_configuration_function "create_xfs_single_disk_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOP_FS@Q}" "${PARTITIONING_DEVICE@Q}" ;;
 		"existing_partitions")
 			if [[ "$PARTITIONING_USE_SWAP" ]]; then
 				swapdev=${PARTITIONING_SWAP_DEVICE:-false}
@@ -201,6 +202,7 @@ ALL_STAGE3_VARIANTS=(
 
 ALL_PARTITIONING_SCHEMES=(
 	"classic_single_disk" "Classic single disk layout (boot/efi, swap?, root)"
+	"xfs_single_disk"     "Single disk layout with XFS (boot/efi, swap?, root)"
 	"existing_partitions" "Skip partitioning, use existing pre-formatted partitions"
 	"zfs_centric"         "ZFS centric (optional ZFS compression and encryption)"
 	"btrfs_centric"       "Btrfs centric (optional raid0/1 via btrfs)"
@@ -213,7 +215,7 @@ PARTITIONING_BOOT_TYPES=(
 	"efi" "efi$([[ $HAS_EFI_SUPPORT == true ]] && echo -n "" || echo -n " (!! $EFI_UNSUPPORTED_MESSAGE_SHORT !!)")"
 	"bios" "bios"
 )
-PARTITIONING_ROOT_FS_TYPES=("ext4" "btrfs")
+PARTITIONING_ROOT_FS_TYPES=("ext4" "btrfs" "xfs")
 PARTITIONING_BTRFS_RAID_TYPES=("raid0" "raid1")
 PARTITIONING_ZFS_POOL_TYPES=("standard" "custom")
 PARTITIONING_ZFS_COMPRESSIONS=("on" "gzip" "lz4" "lzjb" "zle" "zstd" "zstd-fast")
@@ -256,6 +258,20 @@ function create_classic_single_disk_layout() {
 	PARTITIONING_BOOT_TYPE="${arguments[type]}"
 	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
 	PARTITIONING_ROOT_FS="${arguments[root_fs]:-ext4}"
+}
+
+function create_xfs_single_disk_layout() {
+	PARTITIONING_SCHEME="xfs_single_disk"
+
+	local known_arguments=('+swap' '?type' '?luks' '?root_fs')
+	local extra_arguments=()
+	declare -A arguments; parse_arguments "$@"
+
+	PARTITIONING_DEVICE="${extra_arguments[0]}"
+	parse_swap "${arguments[swap]}"
+	PARTITIONING_BOOT_TYPE="${arguments[type]}"
+	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
+	PARTITIONING_ROOT_FS="${arguments[root_fs]:-xfs}"
 }
 
 function create_existing_partitions_layout() {
@@ -918,6 +934,7 @@ function PARTITIONING_SCHEME_menu()  {
 		# Set disk scheme
 		case "$dialog_out" in
 			"classic_single_disk") create_classic_single_disk_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=false root_fs=ext4 /dev/sdX ;;
+			"xfs_single_disk")     create_xfs_single_disk_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=false root_fs=xfs /dev/sdX ;;
 			"existing_partitions") create_existing_partitions_layout boot=/dev/sdA swap=false type="$DEFAULT_BOOT_TYPE" /dev/sdX ;;
 			"zfs_centric")         create_zfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" encrypt=true compress=zstd pool_type=standard /dev/sdX ;;
 			"btrfs_centric")       create_btrfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" raid_type=raid0 luks=false /dev/sdX ;;
